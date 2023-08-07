@@ -1,0 +1,614 @@
+#include <TFT_HX8357.h>
+
+
+
+
+TFT_HX8357 tft = TFT_HX8357();
+
+
+
+static bool up;
+static bool down;
+static bool left;
+static bool right;
+static bool pressed;
+static int oldY = 0;
+int Xpin = A4;
+int Ypin = A3;
+int SwitchPin = 7;
+static int Ycoord = 1;
+static int Xcoord=1;
+static int timer1 = 0;
+static int timer2 = 0;
+static int screenCounter = 1;
+static bool paused;
+static unsigned long previousMillis = 0;
+static unsigned long interval = 820;
+static bool goTimer1;
+static bool goTimer2;
+static bool first=true;
+static int valve1=1;
+static int valve2=2;
+static int valve3=3;
+
+
+
+
+
+void setup() {
+tft.init();
+tft.setRotation(1);
+pinMode(Xpin, INPUT);
+pinMode(Ypin, INPUT);
+pinMode(SwitchPin, INPUT);
+digitalWrite(SwitchPin, HIGH); // Enable internal pull-up resistor
+
+
+
+
+
+
+
+
+pinMode(valve1, OUTPUT);
+pinMode(valve2, OUTPUT);
+pinMode(valve3, OUTPUT);
+digitalWrite(valve1, LOW);
+digitalWrite(valve2, LOW);
+digitalWrite(valve3, LOW);
+
+
+}
+
+
+
+
+
+
+void first_screen_text()
+{
+tft.fillScreen(TFT_BLACK);
+tft.setTextSize(3.5);
+tft.setCursor(40, 66);
+tft.print("Solution 1:");
+tft.setCursor(40, 162);
+tft.print("Solution 2:");
+tft.setCursor(200, 244);
+tft.print("Start");
+tft.setCursor(320, 66); // Adjusted X-coordinate
+tft.print("0:00");
+tft.setCursor(320, 162); // Adjusted X-coordinate
+tft.print("0:00");
+}
+
+
+
+
+
+
+
+
+
+
+
+
+bool switchPressed(int SwitchPin)
+{
+return digitalRead(SwitchPin) == LOW;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void getvalues(bool &u, bool &d, bool &l, bool &r, bool &o) {
+int Xvalue = analogRead(Xpin);
+int Yvalue = analogRead(Ypin);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+u = (Yvalue <= 50);
+d = (Yvalue >= 1000);
+l = (Xvalue <= 50);
+r = (Xvalue >= 1000);
+o = switchPressed(SwitchPin);
+}
+
+
+
+
+
+
+
+
+
+
+void upDown(int y, int &prevY)
+{
+if(screenCounter==1)
+{
+tft.fillTriangle(410, prevY+6, 430, prevY, 430, prevY+12, TFT_BLACK);
+int yPos;
+switch (y) {
+case 1:
+yPos = 66;
+break;
+case 2:
+yPos = 162;
+break;
+case 3:
+yPos = 244;
+break;
+}
+tft.fillTriangle(410, yPos+6, 430, yPos, 430, yPos+12, TFT_WHITE);
+prevY = yPos;
+}
+}
+
+
+
+
+
+
+
+
+void changeY (bool above, bool below)
+{
+if(screenCounter==1)
+{
+if (above) {
+if (Ycoord == 1) {
+Ycoord = 3;
+} else {
+Ycoord--;
+}
+}
+if (below) {
+if (Ycoord == 3) {
+Ycoord = 1;
+} else {
+Ycoord++;
+}
+}
+}
+}
+
+
+
+
+String formatTime(int timeInSeconds) {
+int minutes = timeInSeconds / 60;
+int seconds = timeInSeconds % 60;
+return String(minutes) + ":" + (seconds < 10 ? "0" : "") + String(seconds);
+
+
+
+
+void changeTimer(bool l, bool r) {
+if (l && Ycoord == 1)
+{
+tft.setTextColor(TFT_BLACK);
+tft.setCursor(320, 66); // Adjusted X-coordinate
+tft.print(formatTime(timer1));
+timer1 -= 5;
+if (timer1 < 0) {
+timer1 = 0;
+}
+tft.setTextColor(TFT_WHITE);
+tft.setCursor(320, 66); // Adjusted X-coordinate
+tft.print(formatTime(timer1));
+}
+if (r && Ycoord == 1) {
+tft.setTextColor(TFT_BLACK);
+tft.setCursor(320, 66); // Adjusted X-coordinate
+tft.print(formatTime(timer1));
+timer1 += 5;
+tft.setTextColor(TFT_WHITE);
+tft.setCursor(320, 66); // Adjusted X-coordinate
+tft.print(formatTime(timer1));
+}
+if (l && Ycoord == 2) {
+tft.setTextColor(TFT_BLACK);
+tft.setCursor(320, 162);
+tft.print(formatTime(timer2));
+timer2 -= 5;
+if (timer2 < 0) {
+timer2 = 0;
+}
+tft.setTextColor(TFT_WHITE);
+tft.setCursor(320, 162);
+tft.print(formatTime(timer2));
+}
+if (r && Ycoord == 2)
+{
+tft.setTextColor(TFT_BLACK);
+tft.setCursor(320, 162);
+tft.print(formatTime(timer2));
+timer2 += 5;
+tft.setTextColor(TFT_WHITE);
+tft.setCursor(320, 162);
+tft.print(formatTime(timer2));
+}
+}
+
+
+
+
+
+
+void buttonAction1(bool p)
+{
+if(screenCounter==1)
+{
+if (p)
+{
+if (Ycoord == 1)
+{
+tft.setTextColor(TFT_BLACK);
+tft.setCursor(320, 66);
+tft.print(formatTime(timer1));
+timer1 = 0;
+tft.setCursor(320, 66);
+tft.setTextColor(TFT_WHITE);
+tft.print(formatTime(timer1));
+}
+else if (Ycoord == 2)
+{
+tft.setTextColor(TFT_BLACK);
+tft.setCursor(320, 162);
+tft.print(formatTime(timer2));
+timer2 = 0;
+tft.setCursor(320, 162);
+tft.setTextColor(TFT_WHITE);
+tft.print(formatTime(timer2));
+}
+
+}
+}
+return;
+}
+
+
+
+
+
+
+
+
+void changeX(bool l, bool r)
+{
+if (screenCounter==2)
+{
+if (l)
+{
+if (Xcoord == 1)
+Xcoord=2;
+else if(Xcoord==2)
+Xcoord=1;
+}
+if (r)
+{
+if (Xcoord == 1)
+Xcoord = 2;
+
+else if(Xcoord==2)
+Xcoord=1;
+}
+}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+void leftRight()
+{
+if(screenCounter==2)
+{
+if(Xcoord==1)
+{
+tft.drawLine(315, 65, 410, 65, TFT_BLACK);
+tft.drawLine(60, 65, 140, 65, TFT_WHITE);
+
+
+else if(Xcoord==2)
+{
+tft.drawLine(60, 65, 140, 65, TFT_BLACK);
+tft.drawLine(315, 65, 410, 65, TFT_WHITE);
+}
+}
+}
+
+
+
+
+
+
+
+
+void secondScreentext()
+{
+tft.setCursor(30, 110);
+tft.print("Solution 1:");
+tft.setCursor(30, 170);
+tft.print("Solution 2:");
+tft.setTextSize(3);
+tft.setCursor(65, 40);
+tft.print("Stop");
+tft.setCursor(320, 40);
+tft.print("Reset");
+}
+
+
+
+
+
+
+
+
+void buttonAction2()
+{
+if(screenCounter=2)
+{
+if(pressed)
+{
+if(Xcoord==2)
+{
+screenCounter=1;
+first=true;
+timer1=0;
+timer2=0;
+Ycoord=1;
+  digitalWrite(valve1, LOW);
+digitalWrite(valve2, LOW);
+digitalWrite(valve3, LOW);
+tft.fillScreen(TFT_BLACK);
+return;
+}
+}
+}
+}
+
+
+
+
+
+
+
+
+void timerCountdown()
+{
+if(goTimer1)
+{
+tft.setTextColor(TFT_WHITE);
+
+
+tft.setTextSize(3.5);
+tft.setCursor(170, 244);
+tft.print("Operating");
+
+
+digitalWrite(valve1, HIGH);
+digitalWrite(valve2, LOW);
+digitalWrite(valve3, HIGH);
+
+
+tft.setTextColor(TFT_WHITE);
+tft.setCursor(320, 170);
+tft.print(formatTime(timer2));
+
+
+tft.setTextColor(TFT_BLACK);
+tft.setCursor(320, 110);
+tft.print(formatTime(timer1+1));
+
+
+
+tft.setTextColor(TFT_WHITE);
+tft.setCursor(320, 110);
+tft.print(formatTime(timer1));
+timer1--;
+return;
+}
+
+
+
+tft.setTextColor(TFT_BLACK);
+tft.setCursor(320, 170);
+tft.print(formatTime(timer2));
+
+
+
+
+if(goTimer2)
+{
+digitalWrite(valve1, LOW);
+digitalWrite(valve2, HIGH);
+digitalWrite(valve3, LOW);
+tft.setTextColor(TFT_BLACK);
+tft.setCursor(320, 170);
+tft.print(formatTime(timer2+1));
+
+
+
+
+tft.setTextColor(TFT_WHITE);
+tft.setCursor(320, 170);
+tft.print(formatTime(timer2));
+timer2--;
+return;
+}
+
+
+}
+
+
+
+void updateTimer()
+{
+unsigned long currentMillis = millis(); // Get the current time
+if (!paused && currentMillis - previousMillis >= interval)
+{
+previousMillis = currentMillis; // Update the previous time
+
+
+
+if (timer1 > 0)
+{
+goTimer1=true;
+timerCountdown();
+return;
+}
+goTimer1=false;
+
+
+
+if(timer1==0)
+{
+tft.setTextColor(TFT_BLACK);
+tft.setCursor(320, 110);
+tft.print(formatTime(timer1+1));
+
+
+
+tft.setTextColor(TFT_WHITE);
+tft.setCursor(320, 110);
+tft.print(formatTime(timer1));
+}
+
+
+if (timer1 == 0 && timer2 > 0)
+{
+goTimer2=true;
+timerCountdown();
+return;
+}
+tft.setTextColor(TFT_BLACK);
+tft.setTextSize(3.5);
+tft.setCursor(170, 244);
+tft.print("Operating");
+
+
+tft.setTextColor(TFT_WHITE);
+tft.setTextSize(3.5);
+tft.setCursor(210, 244);
+tft.print("Done");
+
+
+digitalWrite(valve1, LOW);
+digitalWrite(valve2, LOW);
+digitalWrite(valve3, LOW);
+
+
+tft.setTextColor(TFT_BLACK);
+tft.setCursor(320, 170);
+tft.print(formatTime(timer2+1));
+
+
+
+tft.setTextColor(TFT_WHITE);
+tft.setCursor(320, 170);
+tft.print(formatTime(timer2));
+
+}
+
+
+
+}
+
+
+
+
+void secondScreen()
+{
+secondScreentext();
+getvalues(up, down, left, right, pressed);
+changeX(left, right);
+leftRight();
+updateTimer();
+buttonAction2();
+}
+
+
+
+void control()
+{
+getvalues(up, down, left, right, pressed);
+
+
+if(screenCounter==2)
+{
+secondScreen();
+}
+
+
+
+
+
+
+
+
+if (Ycoord == 3 && pressed)
+{
+tft.fillScreen(TFT_BLACK); // Clear the entire screen
+screenCounter++;
+delay(100);
+secondScreen();
+}
+if(screenCounter==1)
+{
+{
+if(first)
+{
+first_screen_text();
+}
+changeY(up, down);
+upDown(Ycoord, oldY);
+changeTimer(left, right);
+buttonAction1(pressed);
+first=false;
+}
+}
+}
+
+
+void loop()
+{
+control();
+delay(180);
+}
